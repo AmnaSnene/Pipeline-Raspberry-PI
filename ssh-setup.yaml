@@ -1,0 +1,22 @@
+- hosts: myhosts
+  gather_facts: no
+  vars_files:
+    - creds.yml
+  vars_prompt:
+    - name: ssh_password
+      prompt: "SSH password"
+      private: yes
+
+  tasks:
+    - name: Scan SSH keys of all hosts and add them to known_hosts
+      local_action: shell ssh-keyscan -H {{ inventory_hostname }} >> ~/.ssh/known_hosts
+      changed_when: false
+
+    - name: Copy SSH public key
+      authorized_key:
+        user: "{{ ansible_user | default(lookup('env','USER')) }}"
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      become: yes
+      become_method: sudo
+

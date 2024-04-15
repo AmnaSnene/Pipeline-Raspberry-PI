@@ -1,0 +1,16 @@
+---
+- hosts: rpi_cluster
+  become: true
+  roles:
+    - node_exporter
+
+- hosts: localhost
+  become: true
+  roles:
+    - prometheus
+    - grafana
+
+  handlers:
+    - name: reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes

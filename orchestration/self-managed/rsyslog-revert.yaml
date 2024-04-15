@@ -1,0 +1,16 @@
+- name: Revert configuration on all Pis except logging-server
+  hosts: myhosts:!logging-server
+  become: true
+  tasks:
+    - name: Remove the block from /etc/rsyslog.conf
+      blockinfile:
+        path: /etc/rsyslog.conf
+        block: |
+          *.* @@control01.local:514
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        state: absent
+
+    - name: Restart rsyslog service
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted

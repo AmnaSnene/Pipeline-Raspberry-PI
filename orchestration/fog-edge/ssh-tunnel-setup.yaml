@@ -1,0 +1,49 @@
+---
+- name: Setup SSH Key and Persistent SSH Tunnel
+  hosts: all
+  gather_facts: no
+  become: yes
+  vars:
+    remote_host: "edison-ip"
+    # Removed the direct variable substitution in the path here
+    remote_user: ""  # Placeholder, will be set dynamically
+    local_port: "8881"
+    remote_port: "8888"
+    destination_host: "vm-ip"  # The destination host in the remote network
+
+  tasks:
+    - name: Get the current user name
+      command: whoami
+      register: whoami_result
+      become: no  # Do not become another user to run this command
+
+    - name: Set the local_ssh_key and remote_user using the obtained username
+      set_fact:
+        local_ssh_key: "/home/{{ whoami_result.stdout }}/ssh/id_rsa"
+        remote_user: "{{ whoami_result.stdout }}"
+    
+    - name: Ensure the SSH directory exists
+      file:
+        path: "/home/{{ whoami_result.stdout }}/ssh"
+        state: directory
+        mode: '0700'
+      become: yes  # Assuming you want to ensure directory creation with elevated privileges
+
+    - name: Check if SSH key exists
+      stat:
+        path: "{{ local_ssh_key }}"
+      register: ssh_key_stat
+
+    - name: Generate SSH key
+      command: ssh-keygen -b 2048 -t rsa -f "{{ local_ssh_key }}" -q -N ""
+      when: not ssh_key_stat.stat.exists
+
+    - name: Copy SSH key to remote
+      command: ssh-copy-id -i "{{ local_ssh_key }}.pub" "{{ remote_user }}@{{ remote_host }}"
+      when: not ssh_key_stat.stat.exists
+
+    - name: Setup autossh for persistent SSH tunneling
+      shell: |
+        nohup autossh -NT -L {{ local_port }}:{{ destination_host }}:{{ remote_port }} {{ remote_user }}@{{ remote_host }} &
+      async: 15
+      poll: 0

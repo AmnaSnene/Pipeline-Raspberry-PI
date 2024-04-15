@@ -1,0 +1,21 @@
+---
+- name: Configure k3s Worker Nodes
+  hosts: all  # Ensure this matches the group in your inventory that represents your worker nodes
+  become: yes
+  vars:
+    k3s_server_url: "https://localhost:6443"
+    k3s_token: "some_random_password"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+
+  tasks:
+    - name: Join k3s Cluster
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | K3S_URL={{ k3s_server_url }} K3S_TOKEN={{ k3s_token }} sh -
+      args:
+        executable: /bin/bash
+
+    - name: Set KUBECONFIG environment variable
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        line: 'KUBECONFIG={{ kubeconfig_path }}'
+        create: yes

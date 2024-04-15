@@ -1,0 +1,18 @@
+---
+- name: Configure all Pis except logging-server
+  hosts: myhosts:!logging-server
+  become: true
+  tasks:
+#    - name: Example task to modify /etc/rsyslog.conf
+#      blockinfile:
+#        path: /etc/rsyslog.conf
+#        block: |
+#          *.* @@control01.local:514
+#        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+#        insertbefore: BOF
+
+    - name: Restart rsyslog service
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted
+

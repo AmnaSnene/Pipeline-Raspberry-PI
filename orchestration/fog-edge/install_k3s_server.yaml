@@ -1,0 +1,29 @@
+---
+- name: Install k3s and Configure Environment
+  hosts: localhost
+  become: yes
+  vars:
+    k3s_install_script: "https://get.k3s.io"
+    k3s_token: "some_random_password"
+    k3s_bind_address: "192.168.122.126"
+    kubeconfig_path: "/etc/rancher/k3s/k3s.yaml"
+
+  tasks:
+    - name: Install k3s Server
+      ansible.builtin.shell: |
+        curl -sfL {{ k3s_install_script }} | sh -s - \
+          --write-kubeconfig-mode 644 \
+          --disable servicelb \
+          --token {{ k3s_token }} \
+          --node-taint CriticalAddonsOnly=true:NoExecute \
+          --bind-address {{ k3s_bind_address }} \
+          --disable-cloud-controller \
+          --disable local-storage
+      args:
+        executable: /bin/bash
+
+    - name: Set KUBECONFIG environment variable
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        line: 'KUBECONFIG={{ kubeconfig_path }}'
+        create: yes

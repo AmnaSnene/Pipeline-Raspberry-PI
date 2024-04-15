@@ -1,0 +1,56 @@
+---
+- name: Deploy MultiPubSub application
+  hosts: rpi_cluster
+  vars:
+    repo_url: 'https://github.com/AmnaSnene/MultiPubSub'
+    dest_path: '/home/at04480/MultiPubSub'  # Updated to use an absolute path
+    requirements_path: '{{ dest_path }}/requirements.txt'
+
+  tasks:
+    - name: Ensure Python3, pip, and Git are installed
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - git
+        state: present
+        update_cache: yes
+      become: true
+
+    - name: Stop dynamic_subscriber.py if it is running
+      ansible.builtin.shell: "pkill -f dynamic_subscriber.py"
+      ignore_errors: true
+
+    - name: Stop dynamic_publisher.py if it is running
+      ansible.builtin.shell: "pkill -f dynamic_publisher.py"
+      ignore_errors: true
+
+    - name: Remove the existing repo directory
+      ansible.builtin.file:
+        path: "{{ dest_path }}"
+        state: absent
+
+    - name: Clone the repository
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ dest_path }}"
+        clone: yes
+        update: yes
+
+    - name: Install Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ requirements_path }}"
+
+    - name: Run dynamic_subscriber.py script
+      ansible.builtin.command:
+        cmd: python3 dynamic_subscriber.py > sub.txt 2>&1 &
+        chdir: "{{ dest_path }}"
+      async: 3600  # Run indefinitely (1 hour) but check status periodically
+      poll: 0
+
+    - name: Run dynamic_publisher.py script
+      ansible.builtin.command:
+        cmd: python3 dynamic_publisher.py > pub.txt 2>&1 &
+        chdir: "{{ dest_path }}"
+      async: 3600  # Similarly, run indefinitely
+      poll: 0
