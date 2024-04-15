@@ -1,0 +1,10 @@
+---
+- name: Install K3S on worker nodes
+  hosts: myhosts:!control
+  become: yes
+  tasks:
+    - name: Install K3S agent
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://pi3-r1-m1-l1-p2.pi3lan.local:6443 K3S_TOKEN=some_random_password sh -
+      args:
+        executable: /bin/bash

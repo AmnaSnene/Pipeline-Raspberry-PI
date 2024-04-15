@@ -1,0 +1,13 @@
+---
+- name: Update user password
+  hosts: all
+  become: yes
+  vars:
+    user_name: "at04480"
+    user_password: "$6$rounds=656000$QF7xS6PXC5WFINGa$lDeBVcyebz95X8g6saiT3QBnt9Ha8Ym/FxwxMStxlaMurGoa6j1hvndDV8an2k1q0YKVMuo0mtjHS9WbtxqKY/"
+
+  tasks:
+  - name: Set the user password
+    user:
+      name: "{{ user_name }}"
+      password: "{{ user_password }}"

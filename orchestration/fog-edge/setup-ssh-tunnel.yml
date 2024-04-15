@@ -1,0 +1,70 @@
+---
+- name: Setup SSH Key and Persistent SSH Tunnel
+  hosts: control
+  gather_facts: no
+  become: yes
+
+  tasks:
+    - name: Ensure autossh is installed (Debian/Ubuntu)
+      apt:
+        name: autossh
+        state: present
+
+    - name: Determine the current username
+      command: whoami
+      register: whoami_result
+      become: false # Do not elevate privileges
+      changed_when: false # Do not mark as a change
+
+    - name: Ensure the SSH directory exists
+      file:
+        path: "/home/{{ whoami_result.stdout }}/ssh"
+        state: directory
+        mode: '0700'
+      become: false # Run as the current user
+
+    - name: Check if the SSH private key exists
+      stat:
+        path: "/home/{{ whoami_result.stdout }}/ssh/id_rsa"
+      register: ssh_key_stat
+
+    - name: Generate the SSH key if it does not exist
+      command: ssh-keygen -b 2048 -t rsa -f "/home/{{ whoami_result.stdout }}/ssh/id_rsa" -q -N ""
+      when: not ssh_key_stat.stat.exists
+      become: true # Run as the current user
+
+#    - name: Set correct permissions on the SSH private key
+ #     file:
+  #      path: "/home/{{ whoami_result.stdout }}/ssh/id_rsa"
+   #     mode: '0600'
+    #  become: true # Ensure permissions are set correctly
+
+    - name: Copy the SSH key to the remote host
+      command: ssh-copy-id -i "/home/{{ whoami_result.stdout }}/ssh/id_rsa.pub" "{{ whoami_result.stdout }}@{{ remote_host }}"
+      when: not ssh_key_stat.stat.exists
+      become: true
+      vars:
+        remote_host: "fd65:aeb8:64e2:a7c::1"
+
+    - name: Kill all existing autossh processes
+      shell: |
+        killall autossh || true
+      become: true
+      ignore_errors: true
+
+    - name: Setup autossh for persistent SSH tunneling with multiple ports
+      vars:
+        remote_host: "logti-adison-ip"
+        destination_host: "vm-ip"
+        port_forwards:
+          - { local_port: "6443", remote_port: "6443" }
+         # - { local_port: "514", remote_port: "514" }
+          - { local_port: "8888", remote_port: "8888" }
+
+      shell: |
+        autossh -M 0 -N -T -i "/home/{{ whoami_result.stdout }}/ssh/id_rsa" \
+        {% for pf in port_forwards -%}
+        -L {{ pf.local_port }}:{{ destination_host }}:{{ pf.remote_port }} \
+        {% endfor %}
+        "{{ whoami_result.stdout }}@{{ remote_host }}" &>> /tmp/autossh_{{ whoami_result.stdout }}.log &
+      become: true

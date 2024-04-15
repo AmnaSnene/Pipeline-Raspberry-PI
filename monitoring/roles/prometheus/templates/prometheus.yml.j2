@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: [{% for host in groups['rpi_cluster'] %}'localhost:{{ hostvars[host].local_port }}'{% if not loop.last %}, {% endif %}{% endfor %}]
